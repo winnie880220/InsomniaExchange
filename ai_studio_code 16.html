@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>失眠交換所 | The Insomnia Exchange</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;500&family=Noto+Sans+TC:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #010204;
+            --color-1: rgba(30, 58, 138, 0.65); 
+            --color-2: rgba(20, 83, 45, 0.55);  
+            --text-light: #f1f5f9;
+            --text-dim: #94a3b8;
+            --breath-time: 11s; 
+            --transition-curve: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body, html { width: 100%; height: 100%; background: var(--bg-color); color: var(--text-dim); font-family: 'Noto Sans TC', sans-serif; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+
+        /* --- 背景系統：強制 pointer-events: none 確保不擋點擊 --- */
+        .bg-layer { position: fixed; width: 100%; height: 100%; z-index: 1; pointer-events: none; overflow: hidden; }
+        .glow-blob { position: absolute; border-radius: 50%; filter: blur(130px); mix-blend-mode: screen; opacity: 0.1; transform: scale(0.9); pointer-events: none; }
+        .animating-blob { animation: globalBreath var(--breath-time) infinite ease-in-out; }
+
+        .blob-1 { width: 80vw; height: 80vw; background: var(--color-1); top: -15%; left: -15%; }
+        .blob-2 { width: 75vw; height: 75vw; background: var(--color-2); bottom: -15%; right: -15%; }
+
+        @keyframes globalBreath { 
+            0%, 15%, 100% { transform: scale(0.9); opacity: 0.08; } 
+            45% { transform: scale(1.3); opacity: 0.8; } 
+        }
+        canvas { position: absolute; top: 0; left: 0; opacity: 0.3; pointer-events: none; }
+
+        /* --- 核心呼吸動畫 --- */
+        @keyframes cardSyncBreath { 
+            0%, 15%, 100% { transform: scale(0.985); opacity: 0.82; } 
+            45% { transform: scale(1.015); opacity: 1; } 
+        }
+
+        /* --- 內容容器 (Z-index 提高) --- */
+        .app-content { position: relative; z-index: 100; width: 95%; max-width: 1200px; display: flex; justify-content: center; align-items: center; }
+        
+        .scene-container { 
+            width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center;
+            transition: opacity 1.5s var(--transition-curve), transform 1.5s var(--transition-curve), filter 1.5s var(--transition-curve);
+        }
+
+        .title { font-family: 'Noto Serif TC', serif; font-size: 2.8rem; letter-spacing: 1.8rem; color: var(--text-light); margin-bottom: 25px; text-indent: 1.8rem; font-weight: 500; animation: cardSyncBreath var(--breath-time) infinite ease-in-out; }
+        .input-area { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; font-size: 1.2rem; text-align: center; padding: 20px 40px; width: 100%; max-width: 500px; border-radius: 80px; outline: none; margin-bottom: 30px; backdrop-filter: blur(20px); font-family: 'Noto Serif TC', serif; transition: 0.5s; }
+        .tag-cloud { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 600px; margin-bottom: 40px; }
+        .tag { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-dim); padding: 10px 20px; border-radius: 40px; font-size: 0.85rem; cursor: pointer; transition: 0.4s; }
+        .tag:hover { border-color: var(--text-light); color: var(--text-light); }
+        .btn-main { background: var(--text-light); color: #000; border: none; padding: 20px 60px; border-radius: 80px; font-size: 1.1rem; letter-spacing: 0.5rem; font-weight: 500; cursor: pointer; transition: 0.5s; }
+
+        /* --- 明信片結果頁 --- */
+        .postcard { 
+            display: none; opacity: 0; width: 100%; 
+            background: rgba(5, 8, 15, 0.9); border: 1px solid rgba(255,255,255,0.06); border-radius: 30px; 
+            overflow: hidden; flex-direction: column; position: relative; 
+            box-shadow: 0 60px 120px rgba(0,0,0,0.9);
+            transform: translateY(10px);
+            transition: opacity 1.5s var(--transition-curve), transform 1.5s var(--transition-curve), filter 1.5s var(--transition-curve);
+        }
+        .sync-active { animation: cardSyncBreath var(--breath-time) infinite ease-in-out; }
+
+        .back-btn { position: absolute; top: 20px; right: 20px; background: none; border: none; cursor: pointer; z-index: 1001; opacity: 0.4; transition: 0.4s; padding: 10px; }
+        .back-btn svg { fill: var(--text-light); width: 24px; height: 24px; }
+
+        /* 手機版排版優化 */
+        .info-side { 
+            flex: 1; padding: 45px 30px; 
+            display: flex; flex-direction: column; justify-content: center; gap: 20px; 
+            overflow-y: auto; text-align: left;
+        }
+
+        .visual-side { width: 100%; height: 220px; overflow: hidden; position: relative; }
+        .img-view { 
+            position: absolute; inset: 0; width: 100%; height: 100%; 
+            background-size: cover; background-position: center; filter: brightness(0.6) saturate(0.5); 
+            animation: slowPan 120s infinite linear; 
+        }
+        @keyframes slowPan { 0% { transform: scale(1.02); } 50% { transform: scale(1.1) translate(-2%, -1%); } 100% { transform: scale(1.02); } }
+
+        @media (min-width: 992px) {
+            .postcard.active-layout { display: flex; flex-direction: row; height: 650px; align-items: stretch; }
+            .visual-side { flex: 1.4; height: auto; min-height: 100%; } 
+            .info-side { padding: 60px 75px; gap: 30px; } 
+        }
+
+        .poem-viewport { height: 120px; overflow: hidden; position: relative; mask-image: linear-gradient(transparent, black 25%, black 75%, transparent); -webkit-mask-image: linear-gradient(transparent, black 25%, black 75%, transparent); }
+        .poem-scroll-container { display: flex; flex-direction: column; gap: 10px; transition: transform 1.5s var(--transition-curve), opacity 1.5s var(--transition-curve); }
+        .poem-line { font-family: 'Noto Serif TC', serif; font-size: 1.5rem; line-height: 1.4; color: var(--text-light); min-height: 50px; display: flex; align-items: center; }
+
+        .scene-desc { font-size: 0.95rem; line-height: 1.9; opacity: 0.6; text-align: justify; }
+        .local-info { font-size: 0.7rem; letter-spacing: 4px; color: #5f7a74; display: flex; justify-content: space-between; align-items: center; }
+        .others-pulse { font-size: 0.75rem; letter-spacing: 2px; color: #2d3748; display: flex; align-items: center; gap: 10px; }
+        .pulse-dot { width: 6px; height: 6px; background: #409c8c; border-radius: 50%; animation: pulseDot 2s infinite; }
+        @keyframes pulseDot { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
+
+        .explore-btn { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text-dim); padding: 12px 30px; border-radius: 50px; font-size: 0.8rem; letter-spacing: 2px; cursor: pointer; transition: 0.4s; width: fit-content; }
+        .explore-btn:hover { border-color: #fff; color: #fff; }
+
+        /* --- 頁尾：修正阻擋點擊問題 --- */
+        .footer { 
+            position: fixed; bottom: 30px; width: 100%; 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 0 40px; z-index: 1000; 
+            pointer-events: none; /* 讓頁尾容器不攔截點擊 */
+        }
+        .footer > * { pointer-events: auto; } /* 讓內部的時鐘與按鈕可以點擊 */
+
+        .time-display { font-size: 0.8rem; letter-spacing: 4px; opacity: 0.3; font-family: monospace; }
+        .audio-btn { background: none; border: none; cursor: pointer; width: 32px; height: 32px; fill: var(--text-dim); opacity: 0.4; transition: 0.4s; }
+        .audio-btn.active { fill: var(--text-light); opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer">
+        <div id="blob1" class="glow-blob blob-1 animating-blob"></div>
+        <div id="blob2" class="glow-blob blob-2 animating-blob"></div>
+        <canvas id="pCanvas"></canvas>
+    </div>
+
+    <div class="app-content">
+        <!-- 步驟 1 -->
+        <div id="home-scene" class="scene-container">
+            <h1 class="title">失眠交換所</h1>
+            <p style="margin-bottom: 30px; letter-spacing: 7px; opacity: 0.6; font-size: 0.9rem;">把此時的腦內碎碎唸留在這裡</p>
+            <input type="text" id="userWhisper" class="input-area" placeholder="..." autocomplete="off">
+            <div class="tag-cloud">
+                <div class="tag" onclick="quickExchange('停不下來')">停不下來</div>
+                <div class="tag" onclick="quickExchange('想很多')">想很多</div>
+                <div class="tag" onclick="quickExchange('空空的')">空空的</div>
+                <div class="tag" onclick="quickExchange('有點難過')">有點難過</div>
+                <div class="tag" onclick="quickExchange('不想說')">不想說</div>
+            </div>
+            <button class="btn-main" onclick="onExchange()">我睡不著</button>
+        </div>
+
+        <!-- 步驟 2 -->
+        <div id="result-scene" class="postcard">
+            <button class="back-btn" onclick="resetUI()">
+                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+            <div class="visual-side"><div id="card-img" class="img-view"></div></div>
+            <div id="info-side-area" class="info-side">
+                <div class="local-info">
+                    <span id="card-loc"></span>
+                    <span id="card-local-time" style="font-family: monospace; opacity: 0.8;"></span>
+                </div>
+                <div class="poem-viewport"><div id="poem-scroll" class="poem-scroll-container"></div></div>
+                <div id="card-desc" class="scene-desc"></div>
+                <div id="card-echo" style="font-style: italic; font-size: 0.85rem; color: #3d4a5d; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;"></div>
+                <div class="others-pulse">
+                    <div class="pulse-dot"></div>
+                    <span>共時守夜者：<span id="other-cities">Tokyo, London...</span></span>
+                </div>
+                <button class="explore-btn" onclick="onExploreNext()">尋找下一處寧靜</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div id="liveClock" class="time-display">00:00:00</div>
+        <button id="audio-btn" class="audio-btn" onclick="toggleNoise()">
+            <svg id="audio-svg" viewBox="0 0 24 24">
+                <!-- 預設靜音 Icon (帶斜槓) -->
+                <path id="svg-path" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.38.28-.81.52-1.25.71v2.06c1-.22 1.91-.65 2.72-1.26L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <audio id="brownNoise" loop><source src="https://mdn.github.io/webaudio-examples/audio-basics/out-of-it.mp3" type="audio/mp3"></audio>
+
+    <script>
+        const scenes = [
+            { loc: "FINLAND, LAPLAND", utc: 2, img: "https://images.unsplash.com/photo-1517021897933-0e0319cfbc28?auto=format&fit=crop&w=1200&q=80", sentences: ["讓夜晚如同一朵花，緩緩綻放。", "森林正被厚雪封印，萬物無聲。", "極光在天際線脈動，與你同步。", "焦慮都會被冰雪緩緩稀釋。", "聽見雪落下的聲音了嗎？"], desc: "雪花靜靜地飄落在黑色的火山岩上。這份冷冽能帶走所有的焦慮。在這邊，睡眠是一場與冰川的古老約定。" },
+            { loc: "NEW ZEALAND, TEKAPO", utc: 13, img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80", sentences: ["睡眠，是編織世界的柔軟絲線。", "湖水正輕輕拍打岸邊，規律且平靜。", "這裡是全球最安靜的夜晚。", "請與湖水的起伏同步呼吸。", "星辰在休息時，噴吐著氣息。"], desc: "南阿爾卑斯山的微風緩緩搖曳。這裡擁有全球最純淨星空，睡眠是一場與星辰的古老約定。" }
+        ];
+
+        const comfortDB = { "想很多": "你的腦袋像深夜繁忙的街道，現在請試著關燈。那些想法並非真實，它們只是掠過的風。", "停不下來": "大腦的齒輪辛苦了一整天，現在已經獲准鬆開了。剩下的世界，會替你繼續轉動。", "空空的": "空曠並不可怕，它是為了承載明天新的星光。請讓這份寂靜包裹你，不需要填滿它。", "有點難過": "夜晚會溫柔地包裹每一滴眼淚。在遙遠的這端，風會替你吹散那些沈重的重量。", "不想說": "不說也沒關係。沈默是靈魂的休息。在這一刻，你的安靜就是最完美的存在。", "default": "你的思緒，已被遠方的寧靜妥善接收。現在，請閉上眼，讓時間替你前進。" };
+
+        let scrollTimer = null, timeTimer = null;
+
+        function restartSync() {
+            const b1 = document.getElementById('blob1'), b2 = document.getElementById('blob2'), card = document.getElementById('result-scene');
+            b1.classList.remove('animating-blob'); b2.classList.remove('animating-blob'); card.classList.remove('sync-active');
+            void b1.offsetWidth; 
+            b1.classList.add('animating-blob'); b2.classList.add('animating-blob'); card.classList.add('sync-active');
+        }
+
+        function updateLocalTime(utcOffset) {
+            const utc = new Date().getTime() + (new Date().getTimezoneOffset() * 60000);
+            const target = new Date(utc + (3600000 * utcOffset));
+            document.getElementById('card-local-time').innerText = "LOCAL TIME " + target.toTimeString().split(' ')[0];
+        }
+
+        function startPoemScroll(sentences) {
+            const container = document.getElementById('poem-scroll');
+            container.innerHTML = ''; container.style.transition = 'none'; container.style.opacity = '1'; container.style.transform = `translateY(0)`;
+            sentences.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'poem-line'; div.innerText = s;
+                container.appendChild(div);
+            });
+            let offset = 0;
+            clearInterval(scrollTimer);
+            scrollTimer = setInterval(() => {
+                offset++;
+                if (offset >= sentences.length) {
+                    container.style.transition = 'opacity 1.5s var(--transition-curve)'; container.style.opacity = '0';
+                    setTimeout(() => {
+                        container.style.transition = 'none'; offset = 0; container.style.transform = `translateY(0)`;
+                        setTimeout(() => { container.style.transition = 'opacity 1.5s var(--transition-curve)'; container.style.opacity = '1'; }, 100);
+                    }, 1600); 
+                } else {
+                    container.style.transition = 'transform 1.5s var(--transition-curve), opacity 1s var(--transition-curve)';
+                    container.style.transform = `translateY(-${offset * 60}px)`;
+                }
+            }, 6000);
+        }
+
+        function updateScene(customTag) {
+            const s = scenes[Math.floor(Math.random() * scenes.length)];
+            const whisper = customTag || document.getElementById('userWhisper').value;
+            document.getElementById('card-img').style.backgroundImage = `url(${s.img})`;
+            document.getElementById('card-loc').innerText = s.loc;
+            document.getElementById('card-desc').innerText = s.desc;
+            document.getElementById('card-echo').innerText = comfortDB[whisper] || comfortDB["default"];
+            startPoemScroll(s.sentences);
+            document.getElementById('other-cities').innerText = ["Tokyo", "Seoul", "Paris", "Berlin"].sort(() => 0.5-Math.random()).slice(0,3).join(", ");
+            clearInterval(timeTimer); updateLocalTime(s.utc);
+            timeTimer = setInterval(() => updateLocalTime(s.utc), 1000);
+        }
+
+        function onExchange() {
+            if(noise.paused) toggleNoise();
+            const home = document.getElementById('home-scene');
+            home.style.opacity = '0'; home.style.transform = 'translateY(-10px)'; home.style.filter = 'blur(10px)';
+            updateScene(); restartSync();
+            setTimeout(() => { 
+                home.style.display = 'none'; 
+                const res = document.getElementById('result-scene');
+                res.style.display = 'flex'; res.classList.add('active-layout');
+                setTimeout(() => { res.style.opacity = '1'; res.style.transform = 'translateY(0)'; res.style.filter = 'blur(0)'; }, 100); 
+            }, 1200);
+        }
+
+        function quickExchange(tag) { document.getElementById('userWhisper').value = tag; onExchange(); }
+        function onExploreNext() { document.getElementById('info-side-area').style.opacity = '0'; document.getElementById('info-side-area').style.filter = 'blur(5px)'; setTimeout(() => { updateScene(); restartSync(); document.getElementById('info-side-area').style.opacity = '1'; document.getElementById('info-side-area').style.filter = 'blur(0)'; }, 1500); }
+        function resetUI() { clearInterval(scrollTimer); clearInterval(timeTimer); const res = document.getElementById('result-scene'); res.style.opacity = '0'; res.style.transform = 'translateY(10px)'; res.style.filter = 'blur(10px)'; setTimeout(() => { res.style.display = 'none'; res.classList.remove('active-layout'); const home = document.getElementById('home-scene'); home.style.display = 'flex'; document.getElementById('userWhisper').value = ''; setTimeout(() => { home.style.opacity = '1'; home.style.transform = 'translateY(0)'; home.style.filter = 'blur(0)'; }, 100); }, 1500); }
+
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+        const cvs = document.getElementById('pCanvas'), ctx = cvs.getContext('2d');
+        let pts = [];
+        function initCvs() { cvs.width = window.innerWidth; cvs.height = window.innerHeight; pts = Array.from({length: 60}, () => ({ x: Math.random()*cvs.width, y: Math.random()*cvs.height, r: Math.random()*1.2, op: Math.random()*0.4, vx: (Math.random()-0.5)*0.1, vy: (Math.random()-0.5)*0.1 })); }
+        function drawPts() { ctx.clearRect(0,0,cvs.width,cvs.height); pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fillStyle = `rgba(148, 163, 184, ${p.op})`; ctx.fill(); p.x+=p.vx; p.y+=p.vy; if(p.x<0||p.x>cvs.width) p.vx*=-1; if(p.y<0||p.y>cvs.height) p.vy*=-1; }); requestAnimationFrame(drawPts); }
+        window.onresize = initCvs; initCvs(); drawPts();
+
+        const noise = document.getElementById('brownNoise');
+        const audioBtn = document.getElementById('audio-btn');
+        const svgPath = document.getElementById('svg-path');
+        
+        function toggleNoise() {
+            if (noise.paused) {
+                noise.volume = 0.2; noise.play(); audioBtn.classList.add('active');
+                // 音樂開啟：聲波 Icon (Volume Up)
+                svgPath.setAttribute('d', 'M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z');
+            } else {
+                noise.pause(); audioBtn.classList.remove('active');
+                // 音樂關閉：靜音 Icon (Volume Off)
+                svgPath.setAttribute('d', 'M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.38.28-.81.52-1.25.71v2.06c1-.22 1.91-.65 2.72-1.26L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z');
+            }
+        }
+    </script>
+</body>
+</html>
